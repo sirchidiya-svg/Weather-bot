@@ -3,11 +3,6 @@ import asyncio
 import logging
 import aiohttp
 from datetime import datetime
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    Application, CommandHandler, MessageHandler,
-    CallbackQueryHandler, ContextTypes, filters
-)
 
 # Load.env file if it exists (local development only)
 try:
@@ -152,147 +147,153 @@ def format_forecast(data: dict) -> str:
 
     return "\n".join(lines)
 
-# ── Handlers ──────────────────────────────────────────────────────────────────
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("🌍 Share Location", callback_data="share_location")],
-        [InlineKeyboardButton("🔍 Search City", callback_data="search_city")],
-        [InlineKeyboardButton("ℹ️ Help", callback_data="help")],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text(
-        "👋 *Welcome to WeatherBot!*\n\n"
-        "I provide accurate, real-time weather forecasts worldwide.\n\n"
-        "Simply *send a city name* or *share your location* to get started!",
-        parse_mode="Markdown",
-        reply_markup=reply_markup,
+async def main():
+    # Import telegram stuff HERE, after event loop exists
+    from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application, CommandHandler, MessageHandler,
+        CallbackQueryHandler, ContextTypes, filters
     )
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "🤖 *WeatherBot Help*\n\n"
-        "*Commands:*\n"
-        "• /start — Welcome message\n"
-        "• /weather `<city>` — Current weather\n"
-        "• /forecast `<city>` — 5-day forecast\n"
-        "• /help — Show this message\n\n"
-        "*Quick Search:*\n"
-        "Just type any city name to get instant weather!\n\n"
-        "*Location:*\n"
-        "Share your GPS location using the 📎 attachment button.\n\n"
-        "*Examples:*\n"
-        "`Lagos` • `/weather Abuja` • `/forecast London`"
-    )
-    await (update.message or update.callback_query.message).reply_text(
-        text, parse_mode="Markdown"
-    )
-
-async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
+    # ── Handlers ──────────────────────────────────────────────────────────────
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        keyboard = [
+            [InlineKeyboardButton("🌍 Share Location", callback_data="share_location")],
+            [InlineKeyboardButton("🔍 Search City", callback_data="search_city")],
+            [InlineKeyboardButton("ℹ️ Help", callback_data="help")],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text(
-            "❌ Please provide a city name.\nExample: `/weather Lagos`",
-            parse_mode="Markdown"
-        )
-        return
-    city = " ".join(context.args)
-    await send_weather(update, city)
-
-async def forecast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.args:
-        await update.message.reply_text(
-            "❌ Please provide a city name.\nExample: `/forecast Abuja`",
-            parse_mode="Markdown"
-        )
-        return
-    city = " ".join(context.args)
-    await send_forecast(update, city)
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    city = update.message.text.strip()
-    await send_weather(update, city)
-
-async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    loc = update.message.location
-    msg = await update.message.reply_text("📍 Fetching weather for your location...")
-    data = await fetch_weather_by_coords(loc.latitude, loc.longitude)
-    if data:
-        city = data["name"]
-        text = format_current_weather(data)
-        keyboard = [[InlineKeyboardButton(
-            "📅 5-Day Forecast", callback_data=f"forecast:{city}"
-        )]]
-        await msg.edit_text(text, parse_mode="Markdown",
-                            reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await msg.edit_text("❌ Couldn't fetch weather for your location. Try again.")
-
-async def send_weather(update: Update, city: str):
-    msg = await update.message.reply_text(f"🔍 Fetching weather for *{city}*...",
-                                          parse_mode="Markdown")
-    data = await fetch_weather(city)
-    if data:
-        text = format_current_weather(data)
-        keyboard = [[InlineKeyboardButton(
-            "📅 5-Day Forecast", callback_data=f"forecast:{city}"
-        ), InlineKeyboardButton(
-            "🔄 Refresh", callback_data=f"refresh:{city}"
-        )]]
-        await msg.edit_text(text, parse_mode="Markdown",
-                            reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await msg.edit_text(
-            f"❌ City *{city}* not found. Check the spelling and try again.",
-            parse_mode="Markdown"
+            "👋 *Welcome to WeatherBot!*\n\n"
+            "I provide accurate, real-time weather forecasts worldwide.\n\n"
+            "Simply *send a city name* or *share your location* to get started!",
+            parse_mode="Markdown",
+            reply_markup=reply_markup,
         )
 
-async def send_forecast(update: Update, city: str):
-    msg = await update.message.reply_text(f"📅 Fetching forecast for *{city}*...",
-                                          parse_mode="Markdown")
-    data = await fetch_forecast(city)
-    if data:
-        await msg.edit_text(format_forecast(data), parse_mode="Markdown")
-    else:
-        await msg.edit_text(
-            f"❌ City *{city}* not found.",
-            parse_mode="Markdown"
+    async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        text = (
+            "🤖 *WeatherBot Help*\n\n"
+            "*Commands:*\n"
+            "• /start — Welcome message\n"
+            "• /weather `<city>` — Current weather\n"
+            "• /forecast `<city>` — 5-day forecast\n"
+            "• /help — Show this message\n\n"
+            "*Quick Search:*\n"
+            "Just type any city name to get instant weather!\n\n"
+            "*Location:*\n"
+            "Share your GPS location using the 📎 attachment button.\n\n"
+            "*Examples:*\n"
+            "`Lagos` • `/weather Abuja` • `/forecast London`"
+        )
+        await (update.message or update.callback_query.message).reply_text(
+            text, parse_mode="Markdown"
         )
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
+    async def weather_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text(
+                "❌ Please provide a city name.\nExample: `/weather Lagos`",
+                parse_mode="Markdown"
+            )
+            return
+        city = " ".join(context.args)
+        await send_weather(update, city)
 
-    if query.data == "help":
-        await help_command(update, context)
-        return
-    if query.data in ("share_location", "search_city"):
-        hint = ("📍 Use the 📎 button → Location to share your GPS."
-                if query.data == "share_location"
-                else "🔍 Just type a city name, e.g. `Nairobi`")
-        await query.message.reply_text(hint, parse_mode="Markdown")
-        return
+    async def forecast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not context.args:
+            await update.message.reply_text(
+                "❌ Please provide a city name.\nExample: `/forecast Abuja`",
+                parse_mode="Markdown"
+            )
+            return
+        city = " ".join(context.args)
+        await send_forecast(update, city)
 
-    action, _, city = query.data.partition(":")
-    if action == "forecast":
-        data = await fetch_forecast(city)
+    async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        city = update.message.text.strip()
+        await send_weather(update, city)
+
+    async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        loc = update.message.location
+        msg = await update.message.reply_text("📍 Fetching weather for your location...")
+        data = await fetch_weather_by_coords(loc.latitude, loc.longitude)
         if data:
-            await query.message.reply_text(format_forecast(data), parse_mode="Markdown")
+            city = data["name"]
+            text = format_current_weather(data)
+            keyboard = [[InlineKeyboardButton(
+                "📅 5-Day Forecast", callback_data=f"forecast:{city}"
+            )]]
+            await msg.edit_text(text, parse_mode="Markdown",
+                                reply_markup=InlineKeyboardMarkup(keyboard))
         else:
-            await query.message.reply_text("❌ Forecast unavailable.")
-    elif action == "refresh":
+            await msg.edit_text("❌ Couldn't fetch weather for your location. Try again.")
+
+    async def send_weather(update: Update, city: str):
+        msg = await update.message.reply_text(f"🔍 Fetching weather for *{city}*...",
+                                              parse_mode="Markdown")
         data = await fetch_weather(city)
         if data:
+            text = format_current_weather(data)
             keyboard = [[InlineKeyboardButton(
                 "📅 5-Day Forecast", callback_data=f"forecast:{city}"
             ), InlineKeyboardButton(
                 "🔄 Refresh", callback_data=f"refresh:{city}"
             )]]
-            await query.message.edit_text(
-                format_current_weather(data), parse_mode="Markdown",
-                reply_markup=InlineKeyboardMarkup(keyboard)
+            await msg.edit_text(text, parse_mode="Markdown",
+                                reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await msg.edit_text(
+                f"❌ City *{city}* not found. Check the spelling and try again.",
+                parse_mode="Markdown"
             )
 
-async def main():
+    async def send_forecast(update: Update, city: str):
+        msg = await update.message.reply_text(f"📅 Fetching forecast for *{city}*...",
+                                              parse_mode="Markdown")
+        data = await fetch_forecast(city)
+        if data:
+            await msg.edit_text(format_forecast(data), parse_mode="Markdown")
+        else:
+            await msg.edit_text(
+                f"❌ City *{city}* not found.",
+                parse_mode="Markdown"
+            )
+
+    async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        query = update.callback_query
+        await query.answer()
+
+        if query.data == "help":
+            await help_command(update, context)
+            return
+        if query.data in ("share_location", "search_city"):
+            hint = ("📍 Use the 📎 button → Location to share your GPS."
+                    if query.data == "share_location"
+                    else "🔍 Just type a city name, e.g. `Nairobi`")
+            await query.message.reply_text(hint, parse_mode="Markdown")
+            return
+
+        action, _, city = query.data.partition(":")
+        if action == "forecast":
+            data = await fetch_forecast(city)
+            if data:
+                await query.message.reply_text(format_forecast(data), parse_mode="Markdown")
+            else:
+                await query.message.reply_text("❌ Forecast unavailable.")
+        elif action == "refresh":
+            data = await fetch_weather(city)
+            if data:
+                keyboard = [[InlineKeyboardButton(
+                    "📅 5-Day Forecast", callback_data=f"forecast:{city}"
+                ), InlineKeyboardButton(
+                    "🔄 Refresh", callback_data=f"refresh:{city}"
+                )]]
+                await query.message.edit_text(
+                    format_current_weather(data), parse_mode="Markdown",
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
+
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
