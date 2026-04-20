@@ -2,14 +2,18 @@ import os
 import logging
 import aiohttp
 from datetime import datetime
-from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
 
-load_dotenv()
+# Load .env file if it exists (local development only)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -20,6 +24,11 @@ logger = logging.getLogger(__name__)
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
 BASE_URL = "https://api.openweathermap.org/data/2.5"
+
+if not TELEGRAM_TOKEN:
+    raise RuntimeError("TELEGRAM_TOKEN environment variable is not set!")
+if not WEATHER_API_KEY:
+    raise RuntimeError("WEATHER_API_KEY environment variable is not set!")
 
 WEATHER_EMOJIS = {
     "Clear": "☀️", "Clouds": "☁️", "Rain": "🌧️",
@@ -42,29 +51,41 @@ def celsius_to_fahrenheit(c: float) -> float:
 async def fetch_weather(city: str) -> dict | None:
     url = f"{BASE_URL}/weather"
     params = {"q": city, "appid": WEATHER_API_KEY, "units": "metric"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            if resp.status == 200:
-                return await resp.json()
-            return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                return None
+    except Exception as e:
+        logger.error(f"Error fetching weather: {e}")
+        return None
 
 async def fetch_forecast(city: str) -> dict | None:
     url = f"{BASE_URL}/forecast"
     params = {"q": city, "appid": WEATHER_API_KEY, "units": "metric", "cnt": 24}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            if resp.status == 200:
-                return await resp.json()
-            return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                return None
+    except Exception as e:
+        logger.error(f"Error fetching forecast: {e}")
+        return None
 
 async def fetch_weather_by_coords(lat: float, lon: float) -> dict | None:
     url = f"{BASE_URL}/weather"
     params = {"lat": lat, "lon": lon, "appid": WEATHER_API_KEY, "units": "metric"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params) as resp:
-            if resp.status == 200:
-                return await resp.json()
-            return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                return None
+    except Exception as e:
+        logger.error(f"Error fetching weather by coords: {e}")
+        return None
 
 def format_current_weather(data: dict) -> str:
     city = data["name"]
