@@ -1,4 +1,5 @@
 import os
+import asyncio
 import logging
 import aiohttp
 from datetime import datetime
@@ -8,7 +9,7 @@ from telegram.ext import (
     CallbackQueryHandler, ContextTypes, filters
 )
 
-# Load .env file if it exists (local development only)
+# Load.env file if it exists (local development only)
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -21,8 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-WEATHER_API_KEY = os.getenv("WEATHER_API_KEY")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "").strip()
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "").strip()
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 if not TELEGRAM_TOKEN:
@@ -145,8 +146,8 @@ def format_forecast(data: dict) -> str:
         rain_chance = max((i.get("pop", 0) * 100) for i in items)
         lines.append(
             f"{emoji} *{date_str}*\n"
-            f"   🌡️ {min_t}°C – {max_t}°C | _{desc}_\n"
-            f"   🌧️ Rain chance: {rain_chance:.0f}%\n"
+            f" 🌡️ {min_t}°C – {max_t}°C | _{desc}_\n"
+            f" 🌧️ Rain chance: {rain_chance:.0f}%\n"
         )
 
     return "\n".join(lines)
@@ -291,7 +292,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
 
-def main():
+async def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
@@ -302,7 +303,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
 
     logger.info("🤖 WeatherBot is running...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    await app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
